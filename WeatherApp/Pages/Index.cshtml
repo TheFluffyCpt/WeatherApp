@@ -1,0 +1,214 @@
+﻿@page
+@using System.Text.Json;
+@using System.Net.Http;
+@using System.Net.Http.Headers;
+@model IndexModel
+@{
+    ViewData["Title"] = "Weather App";
+    Layout = null;
+}
+
+
+@functions
+{
+    public class WeatherData
+    {
+        public MainData main { get; set; }
+        public List<WeatherCondition> weather { get; set; }
+    }
+
+    public class MainData
+    {
+        public double temp { get; set; }
+    }
+
+    public class WeatherCondition
+    {
+        public string description { get; set; }
+    }
+}
+
+<style>
+    body {
+        background: #e0eafc; /* fallback for old browsers */
+        background: -webkit-linear-gradient(to right, #cfdef3, #e0eafc); /* Chrome 10-25, Safari 5.1-6 */
+        background: linear-gradient(to right, #cfdef3, #e0eafc); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+        min-height: 100vh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .main-content-wrapper {
+        width: 100%;
+        max-width: 900px;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .weather-container, .forecast-container {
+        width: 100%;
+        padding: 30px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        text-align: center;
+        backdrop-filter: blur(10px);
+        margin-bottom: 25px; /* Adds space between the containers */
+    }
+
+        .weather-container h1, .forecast-container h2 {
+            color: #2c3e50;
+        }
+
+        .weather-container form {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .weather-container input[type="text"] {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            flex-grow: 1;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+            .weather-container input[type="text"]:focus {
+                outline: none;
+                border-color: #3498db;
+            }
+
+        .weather-container button {
+            padding: 12px 25px;
+            border: none;
+            background-color: #3498db;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+            .weather-container button:hover {
+                background-color: #2980b9;
+                transform: translateY(-2px);
+            }
+
+    .weather-results, .forecast-box {
+        padding: 25px;
+        background-color: #ecf0f1;
+        border-radius: 10px;
+        text-align: left;
+        line-height: 1.6;
+    }
+
+        .weather-results h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #bdc3c7;
+            padding-bottom: 10px;
+        }
+
+        .weather-results p, .forecast-box p {
+            margin: 5px 0;
+        }
+
+    .error-message {
+        padding: 15px;
+        background-color: #e74c3c;
+        color: white;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+
+    .forecast-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 20px;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .forecast-box {
+        background: rgba(255, 255, 255, 0.8);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+        text-align: left;
+    }
+
+        .forecast-box:hover {
+            transform: translateY(-5px);
+        }
+</style>
+
+<body>
+    <div class="main-content-wrapper">
+    <div class="text-center">
+        <h1 class="display-4">Weather App</h1>
+
+        <div class="weather-container">
+            <form method="post">
+                <input type="text" name="city" placeholder="Enter city name" required />
+                <button type="submit">Get Weather</button>
+            </form>
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <div class="error-message">
+                        @Model.ErrorMessage
+                    </div>
+                }
+
+            @if (Model.WeatherData != null)
+            {
+                <div class="weather-results">
+                    <h2>Weather in @Model.City</h2>
+                    <p>Temperature: @Model.WeatherData.main.temp °C</p>
+                    @if (Model.WeatherData.main.feels_like != null)
+                    {
+                        <p>Feels Like: @Model.WeatherData.main.feels_like °C</p>
+                    }
+                    <p>Condition: @Model.WeatherData.weather[0].description</p>
+                    <p>Humidity: @Model.WeatherData.main.humidity%</p>
+                    <p>Wind Speed: @Model.WeatherData.wind.speed m/s</p>
+                    <p>Pressure: @Model.WeatherData.main.pressure hPa</p>
+                </div>
+            }
+        </div>
+
+        <div class="forecast-container">
+            @if (Model.ForecastData != null && Model.ForecastData.list != null && Model.ForecastData.list.Any())
+            {
+                <h2>5-Day Forecast</h2>
+                <div class="forecast-grid">
+                    @foreach (var forecast in Model.ForecastData.list.Where(f => DateTime.Parse(f.dt_txt).Hour == 12).Take(5))
+                    {
+                        <div class="forecast-box">
+                            <h4>@forecast.dt_txt</h4>
+                            <p>Temp: @forecast.main.temp °C</p>
+                            <p>Condition: @forecast.weather[0].description</p>
+                            <p>Wind: @forecast.wind.speed m/s</p>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+            @if (Model.ForecastData != null)
+            {
+                <div class="graph-container">
+                    <img src="~/forecast_graph.png" alt="5-Day Weather Forecast" class="forecast-graph" />
+                </div>
+            }
+    </div>
+    </div>
+</body>
